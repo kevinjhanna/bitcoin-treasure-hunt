@@ -14,5 +14,14 @@
     "chai": "^3.5.0",
     "mocha": "^3.1.2",
     "typescript": "^2.0.7"
+  },
+  "dependencies": {
+    "@types/bluebird": "^3.0.35",
+    "@types/lodash": "^4.14.38",
+    "bitcore-explorers": "^1.0.1",
+    "bitcore-lib": "^0.13.19",
+    "bluebird": "^3.4.6",
+    "lodash": "^4.16.6",
+    "qrcode-terminal": "^0.11.0"
   }
 }
