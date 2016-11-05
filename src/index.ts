@@ -14,20 +14,21 @@ const insightPromise = promisifyAll(insight) as {
   getUnspentUtxosAsync: (foo:any) => any
 }
 
+function delay(ms: number) {
+ return new Promise(resolve => setTimeout(resolve, ms))
+}
 
-async function waitForTransaction(address: any) {
+async function waitForTransaction(address: any) : Promise<any>{
   const utxos = await insightPromise.getUnspentUtxosAsync(address)
 
   if (_.isEmpty(utxos)) {
-    console.log('No funds... Waiting...')
-    return new Promise<void>(resolve => {
-      setTimeout(waitForTransaction, 4000, address);
-    })
+    console.log("No funds... Still waiting...")
+
+    await delay(4000)
+    return waitForTransaction(address)
+
   } else {
-    console.log('found', utxos)
-    return new Promise<any>(resolve => {
-      return utxos
-    })
+    return Promise.resolve(utxos)
   }
 }
 
@@ -40,32 +41,12 @@ async function run() {
   console.log(address.toString())
   qrcode.generate(address.toString())
 
-  const utxos = await waitForTransaction(address)
-  // this is not being called, why?
-  console.log('Finally utxos', utxos)
+  try {
+    const utxos = await waitForTransaction(address)
+    console.log("Finally utxos", utxos)
+  } catch(err) {
+    console.error(err)
+  }
 }
 
 run()
-
-
-// / printDelayed is a 'Promise<void>'
-// async function printDelayed(elements: string[]) {
-//     for (const element of elements) {
-//         await delay(200);
-//         console.log(element);
-//     }
-// }
-
-// async function delay(milliseconds: number) {
-//     return new Promise<void>(resolve => {
-//         setTimeout(resolve, milliseconds);
-//     });
-// }
-
-// printDelayed(["Hello", "beautiful", "asynchronous", "world"]).then(() => {
-//     console.log();
-//     console.log("Printed every element!");
-// });
-
-
-
