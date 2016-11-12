@@ -1,62 +1,16 @@
 import * as _ from 'lodash'
 import { promisifyAll } from 'bluebird'
+import bitcore = require('bitcore-lib')
 
 declare var require: Function
-const bitcore = require('bitcore-lib') as Bitcore
 const Insight = require('bitcore-explorers').Insight
 const qrcode = require('qrcode-terminal')
+const insight = new Insight('testnet')
 
 const FEE = 6000 // satoshis
 
-// Types
-interface Bitcore {
-  PrivateKey: any
-  Transaction: any
-  Address: any
-  Unit: any
-  Script: any
-
-  Networks: {
-    defaultNetwork: any
-    testnet: any
-  }
-}
-
-interface Address {
-  toString: () => string
-}
-
-interface PublicKey {
-}
-
-interface PrivateKey {
-  toAddress: () => Address
-  toPublicKey: () => PublicKey
-  toWIF: () => string
-  // fromWIF: (wif: string) => PrivateKey
-}
-
-interface UnspentOutput {
-  txId: string
-  outputIndex: number
-  satoshis: number
-  address: Address
-  script: string
-}
-
-interface Transaction {
-  id: string
-  from: (utxos: any, publicKeys?: PublicKey[], treshold?: number) => Transaction
-  to: (address: Address, amount: number) => Transaction
-  change: (address: Address) => Transaction
-  fee: (fee: number) => Transaction
-  sign: (privateKeys: PrivateKey | PrivateKey[]) => Transaction
-  serialize: () => string
-}
-
 // Use testnet
 bitcore.Networks.defaultNetwork = bitcore.Networks.testnet
-const insight = new Insight('testnet')
 
 const insightPromise = promisifyAll(insight) as {
   getUnspentUtxosAsync: (foo:any) => any
@@ -67,7 +21,7 @@ function delay(ms: number) {
  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-async function waitForTransaction(address: Address) : Promise<any>{
+async function waitForTransaction(address: bitcore.Address) : Promise<bitcore.UnspentOutput[]>{
   const utxos = await insightPromise.getUnspentUtxosAsync(address)
 
   if (_.isEmpty(utxos)) {
@@ -81,46 +35,77 @@ async function waitForTransaction(address: Address) : Promise<any>{
   }
 }
 
-
 function createPrivateKeys(n: number) {
   return _.chain(n)
     .range()
-    .map(_ => new bitcore.PrivateKey() as PrivateKey)
+    .map(_ => new bitcore.PrivateKey())
     .value()
 }
 
 // In satoshis
-function totalAmount(utxos: UnspentOutput[]) : number {
+function totalAmount(utxos: bitcore.UnspentOutput[]) : number {
   return _.chain(utxos)
     .map(utxo => utxo.satoshis)
     .sum()
     .value()
 }
 
-async function redeem(transactionId: string, fromAddress: Address, amount: number, publicKeys: PublicKey[], tokens: PrivateKey[], address: Address) {
-  const prizeAmount = amount - FEE
+async function redeem(options: {transactionId: string, prizeAddress: bitcore.Address, amount: number, publicKeys: bitcore.PublicKey[], tokens: bitcore.PrivateKey[], address: bitcore.Address }) {
+  const prizeAmount = options.amount - FEE
 
-  const utxo : UnspentOutput = {
-    txId : transactionId,
+  const utxo : bitcore.UnspentOutput = {
+    txId : options.transactionId,
     outputIndex : 0,
-    address : fromAddress.toString(),
-    script : new bitcore.Script(fromAddress).toHex(),
-    satoshis : amount,
+    address : options.prizeAddress.toString(),
+    script : new bitcore.Script(options.prizeAddress).toHex(),
+    satoshis : options.amount,
   }
 
-  const transaction = (new bitcore.Transaction() as Transaction)
-    .from(utxo, publicKeys, tokens.length)
+  const transaction = new bitcore.Transaction()
+    .from(utxo, options.publicKeys, options.tokens.length)
     .fee(FEE)
-    .to(address, prizeAmount)
-    .sign(tokens)
+    .to(options.address, prizeAmount)
+    .sign(options.tokens)
 
   await insightPromise.broadcastAsync(transaction.serialize())
   console.log("Redeemed treasure")
 }
 
+
+interface TreasureHunt {
+  transacation: bitcore.Transaction
+  tokens: bitcore.PrivateKey[]
+  prizeAddress: bitcore.Address
+  prizeAmount: number
+}
+
+function createTreasureHunt(utxos: bitcore.UnspentOutput[], privateKey: bitcore.PrivateKey, options: { tokens: { total: number, required: number }}) : TreasureHunt {
+  const tokens = createPrivateKeys(options.tokens.total)
+  const tokenPublicKeys = tokens.map(token => token.toPublicKey())
+
+  const prizeAddress = new bitcore.Address(tokenPublicKeys, options.tokens.required)
+
+  const prizeAmount = totalAmount(utxos) - FEE
+
+  const transaction = new bitcore.Transaction()
+    .from(utxos)
+    .fee(FEE)
+    .to(prizeAddress, prizeAmount)
+    .sign(privateKey)
+
+  const treasureHunt : TreasureHunt = {
+    tokens: tokens,
+    transacation: transaction,
+    prizeAmount: prizeAmount,
+    prizeAddress: prizeAddress,
+  }
+
+  return treasureHunt
+}
+
 async function run() {
   // Create funding address
-  const fundingPrivateKey = new bitcore.PrivateKey() as PrivateKey
+  const fundingPrivateKey = new bitcore.PrivateKey()
   const fundingAddress = fundingPrivateKey.toAddress()
 
   console.log("Send bitcoin to this address")
@@ -130,26 +115,22 @@ async function run() {
     const utxos = await waitForTransaction(fundingAddress)
     console.log("Address funded", utxos)
 
-    const tokens = createPrivateKeys(10)
-    const tokenPublicKeys = tokens.map(token => token.toPublicKey())
-    const requiredTokens = 2
-
-    const prizeAddress = new bitcore.Address(tokenPublicKeys, requiredTokens) as Address
-
-    const prizeAmount = totalAmount(utxos) - FEE
-
-    const transaction = (new bitcore.Transaction() as Transaction)
-      .from(utxos)
-      .fee(FEE)
-      .to(prizeAddress, prizeAmount)
-      .sign(fundingPrivateKey)
+    const treasureHunt = createTreasureHunt(utxos, fundingPrivateKey, { tokens: { total: 10, required: 2 }})
 
     console.log("Broadcasting transaction")
-    await insightPromise.broadcastAsync(transaction.serialize())
+    await insightPromise.broadcastAsync(treasureHunt.transacation.serialize())
     console.log("Transaction broadcasted successfully")
 
     // Once somebody founds the requiredTokens
-    await redeem(transaction.id, prizeAddress, prizeAmount, tokenPublicKeys, [tokens[0], tokens[1]], 'n49hbHgynpRK3eZdas1p52DCt8bHrY51oD')
+    const tokenPublicKeys = treasureHunt.tokens.map(token => token.toPublicKey())
+    await redeem({
+      transactionId: treasureHunt.transacation.id, 
+      prizeAddress: treasureHunt.prizeAddress, 
+      amount: treasureHunt.prizeAmount, 
+      publicKeys: tokenPublicKeys, 
+      tokens: [treasureHunt.tokens[0], treasureHunt.tokens[1]],
+      address: 'n49hbHgynpRK3eZdas1p52DCt8bHrY51oD'
+    })
 
   } catch(err) {
     console.error(err.stack)
