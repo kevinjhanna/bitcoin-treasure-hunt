@@ -1,3 +1,4 @@
+/// <reference path="./../bitcore-lib/index.d.ts" />
 import bitcore = require('bitcore-lib')
 
 export interface TreasureHunt {
