@@ -1,6 +1,7 @@
 import * as _ from 'lodash'
 import { promisifyAll } from 'bluebird'
 import bitcore = require('bitcore-lib')
+import { TreasureHunt } from './bitcoin-treasure-hunt'
 
 declare var require: Function
 const Insight = require('bitcore-explorers').Insight
@@ -71,13 +72,6 @@ export const redeem = async (options: {transactionId: string, prizeAddress: bitc
   console.log("Redeemed treasure")
 }
 
-
-interface TreasureHunt {
-  transacation: bitcore.Transaction
-  tokens: bitcore.PrivateKey[]
-  prizeAddress: bitcore.Address
-  prizeAmount: number
-}
 
 export const createTreasureHunt = (utxos: bitcore.UnspentOutput[], privateKey: bitcore.PrivateKey, options: { tokens: { total: number, required: number }}) : TreasureHunt => {
   const tokens = createPrivateKeys(options.tokens.total)

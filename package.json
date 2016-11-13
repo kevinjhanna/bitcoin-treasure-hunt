@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "./build/src/index.js",
-  "types": ["./src/bitcore.d.ts"],
+  "types": "./bitcoin-treasure-hunt/index.d.ts",
   "scripts": {
     "test": "tsc; mocha build/test"
   },
