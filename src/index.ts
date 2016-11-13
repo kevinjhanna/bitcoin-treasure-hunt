@@ -17,11 +17,11 @@ const insightPromise = promisifyAll(insight) as {
   broadcastAsync: (transaction: string) => any
 }
 
-function delay(ms: number) {
+const delay = (ms: number) => {
  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-async function waitForTransaction(address: bitcore.Address) : Promise<bitcore.UnspentOutput[]>{
+export const waitForTransaction = async (address: bitcore.Address) : Promise<bitcore.UnspentOutput[]> => {
   const utxos = await insightPromise.getUnspentUtxosAsync(address)
 
   if (_.isEmpty(utxos)) {
@@ -35,7 +35,7 @@ async function waitForTransaction(address: bitcore.Address) : Promise<bitcore.Un
   }
 }
 
-function createPrivateKeys(n: number) {
+const createPrivateKeys = (n: number) => {
   return _.chain(n)
     .range()
     .map(_ => new bitcore.PrivateKey())
@@ -43,14 +43,14 @@ function createPrivateKeys(n: number) {
 }
 
 // In satoshis
-function totalAmount(utxos: bitcore.UnspentOutput[]) : number {
+const totalAmount = (utxos: bitcore.UnspentOutput[]) : number => {
   return _.chain(utxos)
     .map(utxo => utxo.satoshis)
     .sum()
     .value()
 }
 
-async function redeem(options: {transactionId: string, prizeAddress: bitcore.Address, amount: number, publicKeys: bitcore.PublicKey[], tokens: bitcore.PrivateKey[], address: bitcore.Address }) {
+export const redeem = async (options: {transactionId: string, prizeAddress: bitcore.Address, amount: number, publicKeys: bitcore.PublicKey[], tokens: bitcore.PrivateKey[], address: bitcore.Address }) => {
   const prizeAmount = options.amount - FEE
 
   const utxo : bitcore.UnspentOutput = {
@@ -79,7 +79,7 @@ interface TreasureHunt {
   prizeAmount: number
 }
 
-function createTreasureHunt(utxos: bitcore.UnspentOutput[], privateKey: bitcore.PrivateKey, options: { tokens: { total: number, required: number }}) : TreasureHunt {
+export const createTreasureHunt = (utxos: bitcore.UnspentOutput[], privateKey: bitcore.PrivateKey, options: { tokens: { total: number, required: number }}) : TreasureHunt => {
   const tokens = createPrivateKeys(options.tokens.total)
   const tokenPublicKeys = tokens.map(token => token.toPublicKey())
 
@@ -103,6 +103,7 @@ function createTreasureHunt(utxos: bitcore.UnspentOutput[], privateKey: bitcore.
   return treasureHunt
 }
 
+// Example script
 async function run() {
   // Create funding address
   const fundingPrivateKey = new bitcore.PrivateKey()
@@ -137,4 +138,4 @@ async function run() {
   }
 }
 
-run()
+// run()
