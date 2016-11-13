@@ -7,6 +7,15 @@ export interface TreasureHunt {
   prizeAmount: number
 }
 
-export function createTreasureHunt(utxos: bitcore.UnspentOutput[], privateKey: bitcore.PrivateKey, options: { tokens: { total: number; required: number }}) : TreasureHunt
+export interface Funding {
+  address: bitcore.Address
+  privateKey: bitcore.PrivateKey
+}
 
-export function waitForTransaction(address: bitcore.Address) : Promise<bitcore.UnspentOutput[]>
+export function createFunding(): Funding
+
+export function waitForTransaction(address: bitcore.Address): Promise<bitcore.UnspentOutput[]>
+
+export function createTreasureHunt(utxos: bitcore.UnspentOutput[], funding: Funding, options: { tokens: { total: number; required: number }}): TreasureHunt
+
+export function broadcastTreasureHunt(treasureHunt: TreasureHunt): Promise<void>

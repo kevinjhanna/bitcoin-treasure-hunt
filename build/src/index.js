@@ -59,7 +59,7 @@ exports.redeem = (options) => __awaiter(this, void 0, void 0, function* () {
     yield insightPromise.broadcastAsync(transaction.serialize());
     console.log("Redeemed treasure");
 });
-exports.createTreasureHunt = (utxos, privateKey, options) => {
+exports.createTreasureHunt = (utxos, funding, options) => {
     const tokens = createPrivateKeys(options.tokens.total);
     const tokenPublicKeys = tokens.map(token => token.toPublicKey());
     const prizeAddress = new bitcore.Address(tokenPublicKeys, options.tokens.required);
@@ -68,7 +68,7 @@ exports.createTreasureHunt = (utxos, privateKey, options) => {
         .from(utxos)
         .fee(FEE)
         .to(prizeAddress, prizeAmount)
-        .sign(privateKey);
+        .sign(funding.privateKey);
     const treasureHunt = {
         tokens: tokens,
         transacation: transaction,
@@ -77,18 +77,28 @@ exports.createTreasureHunt = (utxos, privateKey, options) => {
     };
     return treasureHunt;
 };
+exports.createFunding = () => {
+    const privateKey = new bitcore.PrivateKey();
+    return {
+        address: privateKey.toAddress(),
+        privateKey: privateKey,
+    };
+};
+exports.broadcastTreasureHunt = (treasureHunt) => __awaiter(this, void 0, void 0, function* () {
+    yield insightPromise.broadcastAsync(treasureHunt.transacation.serialize());
+    return Promise.resolve();
+});
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
-        const fundingPrivateKey = new bitcore.PrivateKey();
-        const fundingAddress = fundingPrivateKey.toAddress();
+        const funding = exports.createFunding();
         console.log("Send bitcoin to this address");
-        qrcode.generate(fundingAddress.toString());
+        qrcode.generate(funding.address.toString());
         try {
-            const utxos = yield exports.waitForTransaction(fundingAddress);
+            const utxos = yield exports.waitForTransaction(funding.address);
             console.log("Address funded", utxos);
-            const treasureHunt = exports.createTreasureHunt(utxos, fundingPrivateKey, { tokens: { total: 10, required: 2 } });
+            const treasureHunt = exports.createTreasureHunt(utxos, funding, { tokens: { total: 10, required: 2 } });
             console.log("Broadcasting transaction");
-            yield insightPromise.broadcastAsync(treasureHunt.transacation.serialize());
+            yield exports.broadcastTreasureHunt(treasureHunt);
             console.log("Transaction broadcasted successfully");
             const tokenPublicKeys = treasureHunt.tokens.map(token => token.toPublicKey());
             yield exports.redeem({

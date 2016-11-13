@@ -1,7 +1,7 @@
 import * as _ from 'lodash'
 import { promisifyAll } from 'bluebird'
 import bitcore = require('bitcore-lib')
-import { TreasureHunt } from './bitcoin-treasure-hunt'
+import { TreasureHunt, Funding } from './bitcoin-treasure-hunt'
 
 declare var require: Function
 const Insight = require('bitcore-explorers').Insight
@@ -73,7 +73,7 @@ export const redeem = async (options: {transactionId: string, prizeAddress: bitc
 }
 
 
-export const createTreasureHunt = (utxos: bitcore.UnspentOutput[], privateKey: bitcore.PrivateKey, options: { tokens: { total: number, required: number }}) : TreasureHunt => {
+export const createTreasureHunt = (utxos: bitcore.UnspentOutput[], funding: Funding, options: { tokens: { total: number, required: number }}) : TreasureHunt => {
   const tokens = createPrivateKeys(options.tokens.total)
   const tokenPublicKeys = tokens.map(token => token.toPublicKey())
 
@@ -85,7 +85,7 @@ export const createTreasureHunt = (utxos: bitcore.UnspentOutput[], privateKey: b
     .from(utxos)
     .fee(FEE)
     .to(prizeAddress, prizeAmount)
-    .sign(privateKey)
+    .sign(funding.privateKey)
 
   const treasureHunt : TreasureHunt = {
     tokens: tokens,
@@ -97,23 +97,36 @@ export const createTreasureHunt = (utxos: bitcore.UnspentOutput[], privateKey: b
   return treasureHunt
 }
 
+export const createFunding = () : Funding => {
+  const privateKey = new bitcore.PrivateKey()
+
+  return {
+    address: privateKey.toAddress(),
+    privateKey: privateKey, 
+  }
+}
+
+export const broadcastTreasureHunt = async (treasureHunt: TreasureHunt) : Promise<void> => {
+  await insightPromise.broadcastAsync(treasureHunt.transacation.serialize())
+  return Promise.resolve()
+}
+
 // Example script
 async function run() {
   // Create funding address
-  const fundingPrivateKey = new bitcore.PrivateKey()
-  const fundingAddress = fundingPrivateKey.toAddress()
+  const funding = createFunding()
 
   console.log("Send bitcoin to this address")
-  qrcode.generate(fundingAddress.toString())
+  qrcode.generate(funding.address.toString())
 
   try {
-    const utxos = await waitForTransaction(fundingAddress)
+    const utxos = await waitForTransaction(funding.address)
     console.log("Address funded", utxos)
 
-    const treasureHunt = createTreasureHunt(utxos, fundingPrivateKey, { tokens: { total: 10, required: 2 }})
+    const treasureHunt = createTreasureHunt(utxos, funding, { tokens: { total: 10, required: 2 }})
 
     console.log("Broadcasting transaction")
-    await insightPromise.broadcastAsync(treasureHunt.transacation.serialize())
+    await broadcastTreasureHunt(treasureHunt)
     console.log("Transaction broadcasted successfully")
 
     // Once somebody founds the requiredTokens
