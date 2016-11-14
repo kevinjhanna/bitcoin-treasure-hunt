@@ -92,6 +92,7 @@ export const createTreasureHunt = (utxos: bitcore.UnspentOutput[], funding: Fund
     transacation: transaction,
     prizeAmount: prizeAmount,
     prizeAddress: prizeAddress,
+    requiredTokens: options.tokens.required,
   }
 
   return treasureHunt

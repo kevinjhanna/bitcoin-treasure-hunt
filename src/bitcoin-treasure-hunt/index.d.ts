@@ -6,6 +6,7 @@ export interface TreasureHunt {
   tokens: bitcore.PrivateKey[]
   prizeAddress: bitcore.Address
   prizeAmount: number
+  requiredTokens: number
 }
 
 export interface Funding {

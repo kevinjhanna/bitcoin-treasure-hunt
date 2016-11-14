@@ -74,6 +74,7 @@ exports.createTreasureHunt = (utxos, funding, options) => {
         transacation: transaction,
         prizeAmount: prizeAmount,
         prizeAddress: prizeAddress,
+        requiredTokens: options.tokens.required,
     };
     return treasureHunt;
 };
