@@ -20,3 +20,5 @@ export function waitForTransaction(address: bitcore.Address): Promise<bitcore.Un
 export function createTreasureHunt(utxos: bitcore.UnspentOutput[], funding: Funding, options: { tokens: { total: number; required: number }}): TreasureHunt
 
 export function broadcastTreasureHunt(treasureHunt: TreasureHunt): Promise<void>
+
+export function redeem(options: {transactionId: string, prizeAddress: bitcore.Address, amount: number, publicKeys: bitcore.PublicKey[], tokens: bitcore.PrivateKey[], address: bitcore.Address }) : Promise<void>
